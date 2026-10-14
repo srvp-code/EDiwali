@@ -1,6 +1,8 @@
 # 🪔 Virtual Diwali Crackers 🎆
-https://srvp-code.github.io/EDiwali/diwali-crackers.html
+
 Celebrate Diwali with colourful fireworks and virtual crackers! Enjoy the festive animations, add your own greeting, and share the joy of Diwali with family and friends — all without using real crackers.
+
+App Link: https://srvp-code.github.io/EDiwali/diwali-crackers.html
 
 ## ✨ How to Use
 
