@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05061a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Diwali Crackers</title>
+<style>
+  :root{--gold:#ffc94d}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
+  html,body{margin:0;height:100%;overflow:hidden;background:#05061a;color:#fff;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
+  #top{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+    padding:calc(10px + env(safe-area-inset-top)) 12px 8px;pointer-events:none;gap:8px}
+  #top>*{pointer-events:auto}
+  #count{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;
+    padding:7px 12px;font-size:14px;font-weight:600;min-width:62px;text-align:center}
+  #title{font-size:15px;font-weight:700;color:#ffd77a;text-shadow:0 0 12px #ff9a00;white-space:nowrap}
+  .icons{display:flex;gap:8px}
+  .ic{width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.1);color:#fff;font-size:19px;cursor:pointer;padding:0}
+  .ic:active{transform:scale(.92)}
+  #hint{position:fixed;left:0;right:0;top:calc(62px + env(safe-area-inset-top));text-align:center;
+    font-size:13px;color:#d9d2ff;padding:0 24px;pointer-events:none;transition:opacity .6s}
+  #hint.off{opacity:0}
+  #dock{position:fixed;left:0;right:0;bottom:0}
+  #msgbar{position:absolute;left:0;right:0;bottom:100%;display:none;gap:8px;padding:0 12px 8px}
+  #msgbar.on{display:flex}
+  #msg{flex:1;min-width:0;font-size:16px;padding:11px 14px;border-radius:24px;border:1px solid rgba(255,255,255,.25);
+    background:rgba(10,8,28,.82);color:#fff;outline:none;user-select:text;-webkit-user-select:text}
+  #msg::placeholder{color:#9a93c4}
+  #send{border:0;border-radius:24px;padding:0 16px;font-size:15px;font-weight:700;color:#2a1500;cursor:pointer;
+    background:linear-gradient(#ffd77a,#ff9a2e)}
+  #send:active{transform:scale(.95)}
+  #tray{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;
+    padding:12px 10px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,rgba(5,4,14,.95) 60%,rgba(5,4,14,0))}
+  #tray::-webkit-scrollbar{display:none}
+  .ck:first-child{margin-left:auto}.ck:last-child{margin-right:auto}
+  .ck{flex:0 0 66px;border-radius:14px;padding:8px 2px 7px;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.14);color:#fff;font-size:11px;cursor:pointer;white-space:nowrap;
+    display:flex;flex-direction:column;align-items:center;gap:3px}
+  .ck b{font-size:24px;font-weight:400;line-height:1}
+  .ck.sel{border-color:var(--gold);background:rgba(255,201,77,.22);box-shadow:0 0 14px rgba(255,201,77,.35)}
+  .ck:active{transform:scale(.95)}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="sky"></canvas>
+
+<div id="top">
+  <div id="count">🔥 0</div>
+  <div id="title">Happy Diwali 🪔</div>
+  <div class="icons">
+    <button class="ic" id="finale" aria-label="Finale show">✨</button>
+    <button class="ic" id="snd" aria-label="Sound on or off">🔊</button>
+    <button class="ic" id="shot" aria-label="Share picture">📸</button>
+  </div>
+</div>
+<div id="hint"></div>
+
+<div id="dock">
+  <div id="msgbar">
+    <input id="msg" maxlength="28" placeholder="Type a name or message…" autocomplete="off" enterkeyhint="send">
+    <button id="send">🚀 Send</button>
+  </div>
+  <div id="tray">
+    <button class="ck sel" data-t="rocket"><b>🚀</b>Rocket</button>
+    <button class="ck" data-t="seven"><b>🎆</b>7 Shot</button>
+    <button class="ck" data-t="anaar"><b>⛲</b>Anaar</button>
+    <button class="ck" data-t="chakra"><b>🌀</b>Chakri</button>
+    <button class="ck" data-t="kambi"><b>🎇</b>Kambi</button>
+    <button class="ck" data-t="hunter"><b>⚡</b>Hunter</button>
+    <button class="ck" data-t="rainbow"><b>🌈</b>Rainbow</button>
+    <button class="ck" data-t="snake"><b>🐍</b>Snake</button>
+    <button class="ck" data-t="bijili"><b>🧧</b>Bijili</button>
+    <button class="ck" data-t="ladi"><b>🧨</b>Saravedi</button>
+    <button class="ck" data-t="tikli"><b>🔴</b>Tikli</button>
+    <button class="ck" data-t="bomb"><b>💣</b>Laxmi</button>
+    <button class="ck" data-t="gun"><b>🔫</b>Cap gun</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+const bg = $("#bg"), sky = $("#sky"), msgEl = $("#msg");
+const bctx = bg.getContext("2d"), sctx = sky.getContext("2d");
+let W, H, DPR, groundY, sc;
+
+/* ---------- background (sky, stars, skyline) ---------- */
+function seeded(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function drawBg() {
+  bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const g = bctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#03040f");
+  g.addColorStop(0.55, "#120a2c");
+  g.addColorStop(0.85, "#3a1a46");
+  g.addColorStop(1, "#5a2646");
+  bctx.fillStyle = g;
+  bctx.fillRect(0, 0, W, H);
+  const r = seeded(7);
+  for (let i = 0; i < 90; i++) {
+    bctx.globalAlpha = 0.25 + r() * 0.6;
+    bctx.fillStyle = "#fff";
+    const s = r() < 0.15 ? 1.6 : 1;
+    bctx.fillRect(r() * W, r() * groundY * 0.8, s, s);
+  }
+  bctx.globalAlpha = 1;
+  let x = -10;
+  while (x < W + 10) {
+    const w = 18 + r() * 34, h = 18 + r() * 70;
+    bctx.fillStyle = "#0b0714";
+    bctx.fillRect(x, groundY - h, w, h + 2);
+    if (r() < 0.5) {
+      bctx.beginPath();
+      bctx.arc(x + w / 2, groundY - h, w * 0.32, Math.PI, 0);
+      bctx.fill();
+    }
+    bctx.fillStyle = "#ffcf6b";
+    for (let wy = groundY - h + 8; wy < groundY - 6; wy += 11) {
+      for (let wx = x + 5; wx < x + w - 5; wx += 9) {
+        if (r() < 0.22) { bctx.globalAlpha = 0.6 + r() * 0.4; bctx.fillRect(wx, wy, 3, 4); }
+      }
+    }
+    bctx.globalAlpha = 1;
+    x += w + r() * 3;
+  }
+  bctx.fillStyle = "#07050d";
+  bctx.fillRect(0, groundY, W, H - groundY);
+}
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  for (const c of [bg, sky]) { c.width = W * DPR; c.height = H * DPR; }
+  sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  groundY = H - $("#tray").offsetHeight - 10;
+  sc = clamp(Math.min(W, H) / 450, 0.8, 1.3);
+  drawBg();
+}
+addEventListener("resize", () => {
+  if (document.activeElement === msgEl && innerWidth === W) return; // keyboard opening
+  resize();
+});
+
+/* ---------- audio (synthesised, no files) ---------- */
+let AC = null, master = null, noiseBuf = null, quiet = false;
+function initAudio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  AC = new Ctx();
+  const comp = AC.createDynamicsCompressor();
+  master = AC.createGain(); master.gain.value = 0.85;
+  master.connect(comp); comp.connect(AC.destination);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+const canPlay = () => AC && !quiet;
+function bang(vol = 1) {
+  if (!canPlay()) return;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = rnd(0.6, 1.2);
+  const f = AC.createBiquadFilter(); f.type = "lowpass";
+  f.frequency.setValueAtTime(3500, t); f.frequency.exponentialRampToValueAtTime(180, t + 0.5);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 0.7);
+  const o = AC.createOscillator(); o.frequency.setValueAtTime(130, t);
+  o.frequency.exponentialRampToValueAtTime(38, t + 0.3);
+  const og = AC.createGain();
+  og.gain.setValueAtTime(vol * 0.8, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  o.connect(og); og.connect(master); o.start(t); o.stop(t + 0.4);
+}
+function bigBang() {
+  if (!canPlay()) return;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.5;
+  const f = AC.createBiquadFilter(); f.type = "lowpass";
+  f.frequency.setValueAtTime(2500, t); f.frequency.exponentialRampToValueAtTime(90, t + 0.9);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(1.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 1.2);
+  const o = AC.createOscillator(); o.frequency.setValueAtTime(90, t);
+  o.frequency.exponentialRampToValueAtTime(28, t + 0.6);
+  const og = AC.createGain();
+  og.gain.setValueAtTime(1.3, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+  o.connect(og); og.connect(master); o.start(t); o.stop(t + 0.8);
+  crackle(6, 0.1);
+}
+function thump() { // mortar launch
+  if (!canPlay()) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(); o.frequency.setValueAtTime(120, t);
+  o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.25);
+}
+function pat(vol = 0.9) {
+  if (!canPlay()) return;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = rnd(1.2, 1.8);
+  const f = AC.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1200;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t, rnd(0, 0.5)); s.stop(t + 0.1);
+}
+function whistle(dur) {
+  if (!canPlay()) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(); o.type = "sine";
+  o.frequency.setValueAtTime(500, t); o.frequency.exponentialRampToValueAtTime(1900, t + dur);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.1);
+  g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+function hiss(dur, vol, hp) {
+  if (!canPlay()) return;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+  const f = AC.createBiquadFilter(); f.type = "highpass"; f.frequency.value = hp;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.15);
+  g.gain.setValueAtTime(vol, t + dur - 0.4); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05);
+}
+function crackle(n, vol = 0.12) {
+  if (!canPlay()) return;
+  for (let i = 0; i < n; i++) {
+    const t = AC.currentTime + rnd(0.15, 1.1);
+    const s = AC.createBufferSource(); s.buffer = noiseBuf;
+    const f = AC.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = rnd(1500, 5000);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t, rnd(0, 0.5)); s.stop(t + 0.06);
+  }
+}
+function buzz(ms) { if (!quiet && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
+
+/* ---------- particles ---------- */
+const parts = [], flashes = [], items = [], shocks = [], texts = [], letters = [];
+let lit = 0, shake = 0;
+function popText(x, y, txt, col, size) {
+  texts.push({ x, y, txt, col, size, rot: rnd(-0.25, 0.25), life: 22, max: 22 });
+}
+function spark(x, y, vx, vy, life, h, o = {}) {
+  if (parts.length > 3000) return;
+  parts.push({
+    x, y, px: x, py: y, vx, vy, life, max: life,
+    g: o.g ?? 0.045, drag: o.drag ?? 0.965, h, h2: o.h2, sat: o.sat ?? 100, l: o.l ?? 60, w: o.w ?? 2,
+    tw: !!o.tw, tail: !!o.tail, split: !!o.split, sa: o.sa ?? 0
+  });
+}
+function flash(x, y, r, h, amp = 1) { flashes.push({ x, y, r, h, amp, life: 12, max: 12 }); }
+
+/* ---------- realistic shell bursts ---------- */
+function burst(x, y, kind, mul = 1) {
+  const hue = rnd(0, 360), S = sc * mul;
+  flash(x, y, 95 * S, hue); flash(x, y, 300 * S, hue, 0.2);
+  const add = (a, s, life, h, o) => spark(x, y, Math.cos(a) * s, Math.sin(a) * s, life, h, o);
+  switch (kind) {
+    case "peony":
+      for (let i = 0; i < 105; i++) add(rnd(0, TAU), (Math.random() < 0.7 ? rnd(4.6, 5.4) : rnd(1, 4)) * S, rnd(60, 85), hue + rnd(-14, 14), { tw: Math.random() < 0.35 });
+      for (let i = 0; i < 22; i++) add(rnd(0, TAU), rnd(1.2, 2.6) * S, rnd(40, 55), hue + 180, { tw: true, l: 72 });
+      break;
+    case "chrysanthemum":
+      for (let i = 0; i < 80; i++) add(rnd(0, TAU), rnd(3.8, 5.4) * S, rnd(75, 95), hue + rnd(-10, 10), { tail: true, g: 0.035, drag: 0.968, w: 2.2 });
+      break;
+    case "crossette":
+      for (let i = 0; i < 14; i++) add(i / 14 * TAU + rnd(-0.1, 0.1), rnd(4.6, 5.4) * S, 70, hue + rnd(-8, 8), { split: true, sa: rnd(0, TAU), w: 2.8, l: 70, tail: true });
+      break;
+    case "colorchange":
+      for (let i = 0; i < 100; i++) add(rnd(0, TAU), (Math.random() < 0.7 ? rnd(4.6, 5.4) : rnd(1, 4)) * S, rnd(75, 95), hue, { h2: hue + 140, tw: true });
+      break;
+    case "willow":
+      for (let i = 0; i < 80; i++) add(rnd(0, TAU), rnd(1.6, 4.2) * S, rnd(100, 130), 42 + rnd(-6, 6), { g: 0.05, drag: 0.975, tw: true, l: 66, tail: true });
+      break;
+    case "ring":
+      for (let i = 0; i < 44; i++) add(i / 44 * TAU, 4.4 * S, rnd(60, 75), hue, {});
+      for (let i = 0; i < 24; i++) add(i / 24 * TAU, 2.2 * S, rnd(50, 65), hue + 160, { tw: true });
+      break;
+    case "palm": {
+      const arms = 7, rot = rnd(0, TAU);
+      for (let i = 0; i < arms; i++) {
+        const base = rot + i / arms * TAU;
+        for (let j = 0; j < 11; j++) add(base + rnd(-0.05, 0.05), (2 + j * 0.4) * S, rnd(80, 100), 42 + rnd(-5, 5), { tail: true, g: 0.05, drag: 0.975, w: 2.4, l: 66, tw: j > 6 });
+      }
+      break;
+    }
+    case "heart":
+      for (let i = 0; i < 100; i++) {
+        const t = i / 100 * TAU;
+        spark(x, y, 16 * Math.pow(Math.sin(t), 3) / 16 * 5 * S,
+          -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 16 * 5 * S,
+          rnd(60, 85), 340 + rnd(-10, 10), { tw: true });
+      }
+      break;
+    default: // multicolour
+      for (let i = 0; i < 100; i++) add(rnd(0, TAU), (Math.random() < 0.7 ? rnd(4.6, 5.4) : rnd(1, 4)) * S, rnd(60, 85), rnd(0, 360), { tw: Math.random() < 0.35 });
+  }
+  setTimeout(() => { bang(0.9 * Math.min(mul, 1.2)); crackle(kind === "willow" || kind === "palm" ? 10 : 5); }, rnd(60, 140));
+  buzz(30);
+}
+const KINDS = ["peony", "peony", "chrysanthemum", "chrysanthemum", "crossette", "colorchange", "willow", "ring", "palm", "heart", "multi"];
+
+/* ---------- name / message written in the sky ---------- */
+function showText(msg, cx, cy) {
+  msg = msg.trim().slice(0, 28);
+  if (!msg) return;
+  let lines = [msg];
+  if (msg.length > 12 && msg.indexOf(" ") > 0) {
+    const mid = msg.length / 2; let best = -1, bd = 1e9;
+    for (let i = 0; i < msg.length; i++) if (msg[i] === " " && Math.abs(i - mid) < bd) { bd = Math.abs(i - mid); best = i; }
+    if (best > 0) lines = [msg.slice(0, best).trim(), msg.slice(best + 1).trim()];
+  }
+  const fam = '"Segoe UI",system-ui,"Noto Sans Tamil","Noto Sans Devanagari",sans-serif';
+  const off = document.createElement("canvas"), o = off.getContext("2d");
+  o.font = `800 72px ${fam}`;
+  const w72 = Math.max(...lines.map(l => o.measureText(l).width));
+  const k = Math.min(1, W * 0.84 / w72), fs = Math.max(20, 72 * k);
+  const cw = Math.ceil(w72 * k + 24), lh = fs * 1.2, ch = Math.ceil(lh * lines.length + 20);
+  off.width = cw; off.height = ch;
+  o.font = `800 ${fs}px ${fam}`; o.textAlign = "center"; o.textBaseline = "middle"; o.fillStyle = "#fff";
+  lines.forEach((l, i) => o.fillText(l, cw / 2, 10 + lh * (i + 0.5)));
+  const data = o.getImageData(0, 0, cw, ch).data;
+  let gap = Math.max(2, Math.round(fs / 16)), pts;
+  for (;;) {
+    pts = [];
+    for (let y = 0; y < ch; y += gap) for (let x = 0; x < cw; x += gap) if (data[(y * cw + x) * 4 + 3] > 128) pts.push([x - cw / 2, y - ch / 2]);
+    if (pts.length <= 1000 || gap > 12) break;
+    gap++;
+  }
+  const tx0 = clamp(cx, cw / 2 + 6, W - cw / 2 - 6), ty0 = clamp(cy, ch / 2 + 96, groundY - ch / 2 - 20);
+  for (const p of pts) letters.push({
+    x: cx, y: cy, tx: tx0 + p[0], ty: ty0 + p[1], t: -rnd(0, 8),
+    fly: rnd(26, 38), hold: rnd(110, 150), fall: rnd(60, 90), h: 42 + rnd(-8, 10), vx: rnd(-0.4, 0.4), cx: cx, cy: cy
+  });
+}
+
+/* ---------- crackers ---------- */
+const DELAY = { rocket: 45, seven: 55, anaar: 45, chakra: 45, kambi: 0, hunter: 25, rainbow: 25, snake: 35, bijili: 40, ladi: 40, tikli: 30, bomb: 75 };
+const SP = { // wire sparklers and matches
+  kambi: { dur: 380, L: 92, n: 5, sp: [0.8, 3.6], life: [16, 34], hue: [38, 50], w: 1.3, l: 78 },
+  hunter: { dur: 230, L: 70, n: 12, sp: [1.5, 6.2], life: [8, 22], hue: [40, 56], w: 1.8, l: 88 },
+  rainbow: { dur: 270, L: 50 }
+};
+const HINTS = {
+  rocket: "Tap to place a rocket anywhere. Type a name first and it appears in the sky after the burst, or press Send",
+  seven: "Tap to place a 7-shot. It fires 7 shells, one after another",
+  anaar: "Tap anywhere to place an anaar and light it",
+  chakra: "Tap anywhere to place a chakri and light it",
+  kambi: "Tap anywhere to light a kambi mathappu (wire sparkler)",
+  hunter: "Tap anywhere to light a hunter. It burns hard and crackles",
+  rainbow: "Tap anywhere to strike a rainbow match",
+  snake: "Tap anywhere to light a snake tablet and watch it grow",
+  bijili: "Tap anywhere to place a bijili vedi. Quick, sharp snap",
+  ladi: "Tap anywhere to hang a saravedi. It bursts from the bottom up",
+  tikli: "Tap anywhere to lay a tikli strip. The dots pop along it",
+  bomb: "Tap anywhere to place a Laxmi bomb. Big bang, so check the volume!",
+  gun: "Cap gun! Tap to aim and fire. Hold your finger down for rapid fire"
+};
+function addItem(type, x, y, o = {}) {
+  if (items.length > 45) return;
+  const it = { type, x, y, t: 0, delay: o.fast ? 8 : DELAY[type], hue: rnd(0, 360), msg: o.msg || "", fh: 0 };
+  if (type === "rocket") {
+    it.fy = y - 30;
+    let ty = Math.max(50, Math.min(y - 110, y - rnd(220, 400) * sc));
+    if (it.msg) ty = Math.max(ty, Math.min(150, y - 110));
+    it.ty = o.ty ?? ty;
+  }
+  if (type === "seven") {
+    it.next = 0;
+    it.kinds = ["peony", "chrysanthemum", "crossette", "colorchange", "willow", "ring", "palm"].sort(() => Math.random() - 0.5);
+  }
+  if (type === "snake") { it.pts = []; it.dir = Math.random() < 0.5 ? -1 : 1; }
+  if (type === "ladi") {
+    const n = clamp(Math.floor((y - 70) / 12), 8, 24);
+    it.n = n; it.next = 0;
+  }
+  if (type === "tikli") {
+    const dir = x > W / 2 ? -1 : 1, n = 14;
+    it.segs = Array.from({ length: n }, (_, i) => ({ x: x + dir * i * 9, popped: false }));
+    it.next = 0;
+  }
+  if (type === "kambi") hiss(5.5, 0.1, 5000);
+  items.push(it); lit++;
+  $("#count").textContent = "🔥 " + lit;
+  buzz(12);
+  $("#hint").classList.add("off");
+  return it;
+}
+function addShell(x, y, kind, big) {
+  const ty = Math.max(55, Math.min(y - 150, rnd(H * 0.1, H * 0.42)));
+  items.push({ type: "shell", x, y, fy: y, ty, vx: rnd(-0.5, 0.5), kind, big, t: 0, delay: 0 });
+}
+function ignite(it) {
+  if (it.type === "rocket") whistle(1.1);
+  else if (it.type === "anaar") hiss(4, 0.22, 2500);
+  else if (it.type === "chakra") hiss(3.4, 0.2, 3000);
+  else if (it.type === "snake") hiss(3.8, 0.1, 900);
+  else if (it.type === "hunter") hiss(2.8, 0.2, 3500);
+  else if (it.type === "rainbow") hiss(3.4, 0.08, 5000);
+}
+function explodeBomb(it) {
+  const x = it.x, y = it.y - 12;
+  flash(x, y, 170 * sc, 45); flash(x, y, 95 * sc, 0);
+  shocks.push({ x, y, r: 10, life: 22, max: 22 });
+  for (let k = 0; k < 70; k++) {
+    const a = -Math.PI / 2 + rnd(-1.3, 1.3), s = rnd(2, 9) * sc;
+    spark(x, y, Math.cos(a) * s, Math.sin(a) * s, rnd(25, 50), Math.random() < 0.5 ? rnd(0, 20) : 48, { g: 0.18, drag: 0.95, w: 2.5, l: 62, tw: true });
+  }
+  for (let k = 0; k < 14; k++) {
+    spark(x + rnd(-12, 12), y + rnd(-6, 6), rnd(-1.2, 1.2), rnd(-2, -0.3), rnd(40, 70), 0, { sat: 0, l: 22, w: 9, g: -0.01, drag: 0.93 });
+  }
+  popText(x, y - 50, "BOOM!", "#ffd24d", 34);
+  bigBang(); buzz([60, 30, 40]); shake = 14;
+}
+function fuseTip(it) {
+  const x = it.x, y = it.y;
+  switch (it.type) {
+    case "rocket": return [x, y - 36];
+    case "seven": return [x + 24, y - 20];
+    case "anaar": return [x + 3, y - 29];
+    case "chakra": return [x + 12, y - 12];
+    case "bomb": return [x + 5, y - 32];
+    case "snake": return [x, y - 8];
+    case "bijili": return [x + 1, y - 22];
+    case "ladi": return [x + 3, y - 2];
+    case "tikli": return [it.segs[0].x, y - 5];
+    default: return [x, y - SP[it.type].L - 4];
+  }
+}
+function drawBody(it) {
+  const c = sctx, x = it.x, y = it.y;
+  c.save();
+  switch (it.type) {
+    case "rocket":
+      c.strokeStyle = "#8a5a2b"; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 16); c.stroke();
+      c.fillStyle = "#d63a2f"; c.fillRect(x - 3.5, y - 32, 7, 18);
+      c.fillStyle = "#ffd24d"; c.fillRect(x - 3.5, y - 24, 7, 3);
+      c.beginPath(); c.moveTo(x - 3.5, y - 32); c.lineTo(x, y - 38); c.lineTo(x + 3.5, y - 32); c.fill();
+      break;
+    case "seven":
+      c.fillStyle = "#1f6f3a"; c.fillRect(x - 22, y - 20, 44, 20);
+      c.fillStyle = "#ffcf4d"; c.fillRect(x - 22, y - 12, 44, 3);
+      c.fillStyle = "#0b0b10";
+      for (let k = 0; k < 7; k++) { c.beginPath(); c.arc(x - 18 + k * 6, y - 20, 2.4, 0, TAU); c.fill(); }
+      c.strokeStyle = "#c9b48a"; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(x + 22, y - 10); c.quadraticCurveTo(x + 26, y - 14, x + 24, y - 20); c.stroke();
+      break;
+    case "anaar":
+      c.fillStyle = "#c0392b";
+      c.beginPath(); c.moveTo(x - 11, y); c.lineTo(x + 11, y); c.lineTo(x + 8, y - 26); c.lineTo(x - 8, y - 26); c.closePath(); c.fill();
+      c.fillStyle = "#ffcf4d"; c.fillRect(x - 9.5, y - 14, 19, 4);
+      c.fillStyle = "#2b1a12"; c.fillRect(x - 8, y - 27, 16, 3);
+      break;
+    case "chakra":
+      c.translate(x, y - 11); c.rotate(it.spin || 0);
+      c.fillStyle = "#d7a21e"; c.beginPath(); c.arc(0, 0, 11, 0, TAU); c.fill();
+      c.strokeStyle = "#6b3f0e"; c.lineWidth = 1.5;
+      for (let k = 0; k < 3; k++) { c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(k * TAU / 3) * 11, Math.sin(k * TAU / 3) * 11); c.stroke(); }
+      c.fillStyle = "#2b1a12"; c.beginPath(); c.arc(0, 0, 3, 0, TAU); c.fill();
+      break;
+    case "kambi": case "hunter": {
+      const P = SP[it.type], L = P.L - (P.L * 0.7) * (it.t / P.dur);
+      c.strokeStyle = it.type === "hunter" ? "#7d7d88" : "#b9b9c4"; c.lineWidth = it.type === "hunter" ? 2.6 : 1.6;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - L); c.stroke();
+      c.strokeStyle = it.type === "hunter" ? "#7a2b1a" : "#3b2f2f"; c.lineWidth = it.type === "hunter" ? 4 : 2.6;
+      c.beginPath(); c.moveTo(x, y - L); c.lineTo(x, y - L - 5); c.stroke();
+      break;
+    }
+    case "rainbow": {
+      const P = SP.rainbow, L = P.L - (P.L * 0.5) * (it.t / P.dur);
+      c.strokeStyle = "#caa46b"; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - L); c.stroke();
+      c.fillStyle = it.delay > 0 ? "#c0392b" : "#3b2f2f";
+      c.beginPath(); c.arc(x, y - L - 1, 3.4, 0, TAU); c.fill();
+      if (it.delay <= 0) {
+        c.globalCompositeOperation = "lighter";
+        const g = c.createRadialGradient(x, y - L - 8, 0, x, y - L - 8, 18);
+        g.addColorStop(0, `hsla(${it.fh},100%,70%,.95)`); g.addColorStop(1, `hsla(${it.fh},100%,50%,0)`);
+        c.fillStyle = g; c.fillRect(x - 18, y - L - 26, 36, 36);
+        c.fillStyle = `hsl(${it.fh},100%,72%)`;
+        c.beginPath(); c.ellipse(x, y - L - 8, 3, 7, 0, 0, TAU); c.fill();
+      }
+      break;
+    }
+    case "bomb":
+      c.fillStyle = "#2e7d32"; c.beginPath(); c.arc(x, y - 13, 13, 0, TAU); c.fill();
+      c.strokeStyle = "#1b4d20"; c.lineWidth = 1.2;
+      for (let k = -2; k <= 2; k++) { c.beginPath(); c.ellipse(x, y - 13, 13, 4 + Math.abs(k) * 2, k * 0.5, 0, TAU); c.stroke(); }
+      c.fillStyle = "rgba(255,255,255,.18)"; c.beginPath(); c.arc(x - 4, y - 18, 4, 0, TAU); c.fill();
+      c.strokeStyle = "#c9b48a"; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(x, y - 26); c.quadraticCurveTo(x + 2, y - 30, x + 5, y - 32); c.stroke();
+      break;
+    case "bijili":
+      c.fillStyle = "#c8302a"; c.fillRect(x - 4, y - 20, 8, 20);
+      c.fillStyle = "#ffcf4d"; c.fillRect(x - 4, y - 14, 8, 2.5);
+      c.strokeStyle = "#c9b48a"; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(x, y - 20); c.lineTo(x + 1, y - 24); c.stroke();
+      break;
+    case "ladi": {
+      const n = it.n, top = y - n * 12;
+      c.strokeStyle = "#caa46b"; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(x, y - it.next * 12 - 4); c.lineTo(x, top - 10); c.stroke();
+      for (let i = it.next; i < n; i++) {
+        const sy = y - i * 12;
+        c.fillStyle = "#d63a2f"; c.fillRect(x - 3.5, sy - 10, 7, 10);
+        c.fillStyle = "#ffd24d"; c.fillRect(x - 3.5, sy - 6, 7, 1.6);
+      }
+      break;
+    }
+    case "tikli": {
+      const a = it.segs[0].x, b = it.segs[it.segs.length - 1].x;
+      c.fillStyle = "#b3261e"; c.fillRect(Math.min(a, b) - 5, y - 6, Math.abs(b - a) + 10, 5);
+      for (const s of it.segs) {
+        c.fillStyle = s.popped ? "#1a0f0f" : "#ffd24d";
+        c.beginPath(); c.arc(s.x, y - 3.5, 2, 0, TAU); c.fill();
+      }
+      break;
+    }
+    case "snake":
+      if (it.pts.length > 1) {
+        c.lineCap = "round"; c.lineJoin = "round";
+        c.beginPath(); c.moveTo(it.pts[0][0], it.pts[0][1]);
+        for (const p of it.pts) c.lineTo(p[0], p[1]);
+        c.strokeStyle = "#26262b"; c.lineWidth = 7; c.stroke();
+        c.strokeStyle = "rgba(150,150,165,.55)"; c.lineWidth = 2.2; c.stroke();
+      } else {
+        c.fillStyle = "#3a3a42"; c.beginPath(); c.arc(x, y - 5, 5, 0, TAU); c.fill();
+      }
+      break;
+  }
+  c.restore();
+}
+
+function launchTrail(px, fy) {
+  for (let k = 0; k < 2; k++) spark(px, fy + 8, rnd(-0.6, 0.6), rnd(0.5, 1.8), rnd(18, 30), rnd(25, 45), { g: 0.03, drag: 0.95, w: 1.6, l: 68 });
+  sctx.globalCompositeOperation = "lighter";
+  sctx.fillStyle = "hsla(45,100%,80%,1)";
+  sctx.beginPath(); sctx.arc(px, fy, 2.6, 0, TAU); sctx.fill();
+  sctx.globalCompositeOperation = "source-over";
+}
+
+function stepItem(it, dt) {
+  if (it.delay > 0) {
+    it.delay -= dt;
+    const [fx, fy] = fuseTip(it);
+    for (let k = 0; k < 2; k++) spark(fx, fy, rnd(-0.8, 0.8), rnd(-1.8, -0.4), rnd(8, 14), rnd(25, 45), { g: 0.05, w: 1.5, l: 70 });
+    if (it.delay <= 0) {
+      ignite(it);
+      if (it.type === "bomb") { explodeBomb(it); return false; }
+      if (it.type === "bijili") {
+        const x = it.x, y = it.y - 10;
+        flash(x, y, 42 * sc, 20);
+        for (let k = 0; k < 12; k++) { const a = rnd(0, TAU), s = rnd(1.5, 5); spark(x, y, Math.cos(a) * s, Math.sin(a) * s, rnd(16, 28), rnd(0, 14), { g: 0.12, drag: 0.94, w: 2.6, tw: true }); }
+        for (let k = 0; k < 6; k++) { const a = rnd(0, TAU), s = rnd(2, 6); spark(x, y, Math.cos(a) * s, Math.sin(a) * s, rnd(8, 14), 48, { g: 0.08, drag: 0.92, w: 1.6 }); }
+        bang(0.5); buzz(18);
+        if (Math.random() < 0.6) popText(x, y - 18, "TAT!", "#ff8a3d", 18);
+        return false;
+      }
+    }
+    drawBody(it);
+    return true;
+  }
+  it.t += dt;
+  const x = it.x, y = it.y;
+
+  switch (it.type) {
+    case "rocket": {
+      it.fy -= 8.5 * sc * dt;
+      const px = x + Math.sin(it.t * 0.5) * 1.2;
+      launchTrail(px, it.fy);
+      if (it.fy <= it.ty) {
+        burst(px, it.fy, pick(KINDS));
+        if (it.msg) showText(it.msg, px, it.fy);
+        return false;
+      }
+      return true;
+    }
+    case "shell": {
+      it.fy -= 11 * sc * dt;
+      const px = x + it.vx * it.t;
+      launchTrail(px, it.fy);
+      if (it.fy <= it.ty) { burst(px, it.fy, it.kind, it.big ? 1.35 : 1.15); return false; }
+      return true;
+    }
+    case "seven": {
+      while (it.next < 7 && it.t >= it.next * 30) {
+        const big = it.next === 6;
+        addShell(x - 15 + it.next * 5 + rnd(-3, 3), y - 22, it.kinds[it.next], big);
+        flash(x, y - 22, 46 * sc, 40);
+        for (let k = 0; k < 8; k++) spark(x, y - 22, rnd(-2, 2), rnd(-3, -0.5), rnd(10, 18), rnd(20, 45), { g: 0.08, w: 1.8 });
+        thump(); buzz(15);
+        it.next++;
+      }
+      drawBody(it);
+      return it.next < 7 || it.t < 7 * 30 + 10;
+    }
+    case "anaar": {
+      for (let k = 0; k < 6; k++) {
+        const a = -Math.PI / 2 + rnd(-0.42, 0.42), s = rnd(5, 8.2) * sc;
+        const r = Math.random();
+        const h = r < 0.55 ? 42 : r < 0.8 ? 18 : (it.hue + it.t * 0.5) % 360;
+        spark(x, y - 28, Math.cos(a) * s, Math.sin(a) * s, rnd(55, 80), h, { g: 0.11, drag: 0.985, w: 2, tw: true, l: r > 0.93 ? 92 : 62, sat: r > 0.93 ? 0 : 100 });
+      }
+      if (it.t % 20 < dt) buzz(8);
+      drawBody(it);
+      return it.t < 240;
+    }
+    case "chakra": {
+      const dur = 210;
+      it.spin = (it.spin || 0) + (0.35 + 0.3 * it.t / dur) * dt;
+      const cy = y - 11;
+      for (let k = 0; k < 3; k++) {
+        const ang = it.spin + k * TAU / 3;
+        const vx = -Math.sin(ang) * 4 + Math.cos(ang) * 1.4, vy = Math.cos(ang) * 4 + Math.sin(ang) * 1.4;
+        spark(x + Math.cos(ang) * 9, cy + Math.sin(ang) * 9, vx * sc, vy * sc, rnd(26, 38), (it.hue + it.t * 3) % 360, { g: 0.03, drag: 0.96, w: 2.2, l: 62 });
+      }
+      drawBody(it);
+      return it.t < dur;
+    }
+    case "kambi": case "hunter": {
+      const P = SP[it.type], L = P.L - (P.L * 0.7) * (it.t / P.dur), ty = y - L - 5;
+      for (let k = 0; k < P.n; k++) {
+        const a = rnd(0, TAU), s = rnd(P.sp[0], P.sp[1]);
+        spark(x, ty, Math.cos(a) * s, Math.sin(a) * s - 0.6, rnd(P.life[0], P.life[1]), rnd(P.hue[0], P.hue[1]), { g: 0.09, drag: 0.94, w: P.w, tw: true, l: P.l });
+      }
+      if (it.type === "hunter") {
+        if (Math.random() < 0.25) flash(ty, ty, 1, 0, 0); // no-op guard
+        if (Math.random() < 0.22) { flash(x, ty, 36 * sc, 50, 0.8); }
+        if (Math.random() < 0.12) crackle(2, 0.14);
+      } else if (Math.random() < 0.06) flash(x, ty, 26 * sc, 45, 0.5);
+      drawBody(it);
+      return it.t < P.dur;
+    }
+    case "rainbow": {
+      const P = SP.rainbow, L = P.L - (P.L * 0.5) * (it.t / P.dur), ty = y - L - 8;
+      it.fh = (it.t * 2.4) % 360;
+      for (let k = 0; k < 3; k++) spark(x + rnd(-1.5, 1.5), ty, rnd(-0.7, 0.7), rnd(-2.2, -0.6), rnd(10, 20), (it.fh + rnd(-30, 30)) % 360, { g: 0.02, w: 2.2, l: 62 });
+      drawBody(it);
+      return it.t < P.dur;
+    }
+    case "snake": {
+      const grow = 260;
+      if (it.t < grow) {
+        const len = it.t / grow * 160 * sc;
+        const px = x + Math.sin(len * 0.07) * 13 * sc + it.dir * len * 0.22 + Math.sin(len * 0.23) * 3;
+        const py = y - 6 - len * 0.85;
+        it.pts.push([px, py]);
+        for (let k = 0; k < 2; k++) spark(px, py, rnd(-0.5, 0.5), rnd(-1.6, -0.3), rnd(10, 18), rnd(15, 40), { g: 0.03, w: 1.6, l: 62 });
+        if (Math.random() < 0.25) spark(px, py, rnd(-0.4, 0.4), rnd(-1.2, -0.4), rnd(35, 55), 0, { sat: 0, l: 16, w: 6, g: -0.01, drag: 0.95 });
+      }
+      drawBody(it);
+      return it.t < grow + 110;
+    }
+    case "ladi": {
+      const per = 4;
+      while (it.next < it.n && it.t >= it.next * per) {
+        const sy = y - it.next * 12 - 5, last = it.next === it.n - 1;
+        flash(x, sy, (last ? 70 : 32) * sc, 30);
+        for (let k = 0; k < (last ? 26 : 11); k++) {
+          const a = rnd(0, TAU), sp = rnd(1, last ? 5 : 3.6);
+          spark(x, sy, Math.cos(a) * sp, Math.sin(a) * sp, rnd(16, 26), Math.random() < 0.6 ? rnd(0, 18) : 48, { g: 0.1, drag: 0.94, w: 1.8, tw: true });
+        }
+        bang(last ? 0.8 : 0.36); if (it.next % 3 === 0 || last) buzz(10);
+        it.next++;
+      }
+      drawBody(it);
+      return it.next < it.n || it.t < it.n * per + 8;
+    }
+    case "tikli": {
+      const per = 3;
+      while (it.next < it.segs.length && it.t >= it.next * per) {
+        const s = it.segs[it.next]; s.popped = true;
+        flash(s.x, y - 4, 16 * sc, 45, 0.8);
+        for (let k = 0; k < 5; k++) { const a = rnd(Math.PI, TAU), sp = rnd(0.8, 2.6); spark(s.x, y - 4, Math.cos(a) * sp, Math.sin(a) * sp, rnd(8, 14), rnd(30, 50), { g: 0.08, w: 1.4 }); }
+        pat(0.35);
+        it.next++;
+      }
+      drawBody(it);
+      return it.next < it.segs.length || it.t < it.segs.length * per + 6;
+    }
+  }
+  return false;
+}
+
+/* ---------- cap gun (tikli roll caps) ---------- */
+const gun = { a: -Math.PI / 2, recoil: 0 };
+const gunPos = () => [W / 2, groundY - 6];
+function drawGun(dt) {
+  if (sel !== "gun") return;
+  const [gx, gy] = gunPos(), c = sctx;
+  gun.recoil *= Math.pow(0.75, dt);
+  c.save();
+  c.translate(gx, gy); c.rotate(gun.a);
+  if (Math.cos(gun.a) < 0) c.scale(1, -1);
+  c.translate(-gun.recoil, 0);
+  c.fillStyle = "#4a4a55"; c.fillRect(0, -7, 36, 9);
+  c.fillStyle = "#8a8a98"; c.fillRect(0, -7, 36, 2.5);
+  c.fillStyle = "#2a2a30"; c.fillRect(30, -9, 4, 3);
+  c.save(); c.translate(6, 2); c.rotate(0.25);
+  c.fillStyle = "#7a3d1c"; c.fillRect(0, 0, 11, 22); c.restore();
+  c.strokeStyle = "#2a2a30"; c.lineWidth = 2;
+  c.beginPath(); c.arc(17, 5, 5, 0, Math.PI); c.stroke();
+  c.fillStyle = "#d63a2f"; c.fillRect(2, -4, 6, 5);
+  c.restore();
+}
+function fire(tx, ty) {
+  const [gx, gy] = gunPos();
+  let a = Math.atan2(ty - gy, tx - gx);
+  if (a > 0) a = a < Math.PI / 2 ? -0.12 : -Math.PI + 0.12;
+  a = clamp(a, -Math.PI + 0.12, -0.12);
+  gun.a = a; gun.recoil = 6;
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const mx = gx + ca * 38, my = gy + sa * 38;
+  flash(mx, my, 48 * sc, 40);
+  for (let k = 0; k < 14; k++) {
+    const aa = a + rnd(-0.5, 0.5), s = rnd(3, 8);
+    spark(mx, my, Math.cos(aa) * s, Math.sin(aa) * s, rnd(10, 18), rnd(20, 50), { g: 0.08, drag: 0.93, w: 2 });
+  }
+  for (let k = 0; k < 6; k++) {
+    const aa = a + rnd(-0.9, 0.9), s = rnd(1, 4);
+    spark(mx, my, Math.cos(aa) * s, Math.sin(aa) * s, rnd(20, 30), rnd(0, 10), { g: 0.12, drag: 0.94, w: 3, tw: true });
+  }
+  for (let k = 0; k < 3; k++) {
+    spark(mx, my, ca * rnd(0.5, 1.5) + rnd(-0.4, 0.4), sa * rnd(0.5, 1.5) + rnd(-0.4, 0.4), rnd(30, 45), 0, { sat: 0, l: 20, w: 7, g: -0.01, drag: 0.95 });
+  }
+  if (Math.random() < 0.45) popText(mx + ca * 26, my + sa * 26 - 10, "PAT!", pick(["#ffd24d", "#ff7a3d", "#ffffff"]), 22);
+  pat(); buzz(12);
+  lit++; $("#count").textContent = "🔥 " + lit;
+  $("#hint").classList.add("off");
+}
+let gunTimer = null, gunPt = null;
+function stopGun() { if (gunTimer) clearInterval(gunTimer); gunTimer = null; gunPt = null; }
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 16.667, 3); last = now;
+  if (shake > 0) {
+    bg.style.transform = sky.style.transform = `translate(${rnd(-shake, shake)}px,${rnd(-shake, shake)}px)`;
+    shake *= Math.pow(0.86, dt);
+    if (shake < 0.3) { shake = 0; bg.style.transform = sky.style.transform = ""; }
+  }
+  sctx.globalCompositeOperation = "destination-out";
+  sctx.fillStyle = "rgba(0,0,0,0.24)";
+  sctx.fillRect(0, 0, W, H);
+  sctx.globalCompositeOperation = "source-over";
+
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (!stepItem(items[i], dt)) items.splice(i, 1);
+  }
+  drawGun(dt);
+
+  sctx.globalCompositeOperation = "lighter";
+  sctx.lineCap = "round";
+  for (let i = flashes.length - 1; i >= 0; i--) {
+    const f = flashes[i]; f.life -= dt;
+    if (f.life <= 0) { flashes.splice(i, 1); continue; }
+    if (f.amp <= 0) continue;
+    const a = f.life / f.max, r = f.r * (1.2 - a * 0.4);
+    const g = sctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+    g.addColorStop(0, `hsla(${f.h},100%,88%,${a * 0.85 * f.amp})`);
+    g.addColorStop(1, `hsla(${f.h},100%,50%,0)`);
+    sctx.fillStyle = g; sctx.fillRect(f.x - r, f.y - r, r * 2, r * 2);
+  }
+  for (let i = shocks.length - 1; i >= 0; i--) {
+    const s = shocks[i]; s.life -= dt;
+    if (s.life <= 0) { shocks.splice(i, 1); continue; }
+    s.r += 9 * sc * dt;
+    const a = s.life / s.max;
+    sctx.strokeStyle = `hsla(40,100%,85%,${a * 0.6})`; sctx.lineWidth = 2 + a * 5;
+    sctx.beginPath(); sctx.arc(s.x, s.y, s.r, 0, TAU); sctx.stroke();
+  }
+  const dp = Math.pow;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life -= dt;
+    if (p.life <= 0) { parts[i] = parts[parts.length - 1]; parts.pop(); continue; }
+    if (p.split && p.life < p.max * 0.5) { // crossette: star splits into four
+      for (let k = 0; k < 4; k++) {
+        const a = p.sa + k * TAU / 4;
+        spark(p.x, p.y, Math.cos(a) * 2.8 * sc + p.vx * 0.3, Math.sin(a) * 2.8 * sc + p.vy * 0.3, rnd(34, 44), p.h, { g: 0.045, drag: 0.965, w: 2, tw: true });
+      }
+      flash(p.x, p.y, 22 * sc, p.h, 0.6);
+      parts[i] = parts[parts.length - 1]; parts.pop(); continue;
+    }
+    p.px = p.x; p.py = p.y;
+    p.vx *= dp(p.drag, dt); p.vy = p.vy * dp(p.drag, dt) + p.g * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    let a = p.life / p.max;
+    const h = p.h2 !== undefined ? p.h + (p.h2 - p.h) * (1 - a) : p.h;
+    if (p.tail && Math.random() < 0.5) spark(p.px, p.py, rnd(-0.2, 0.2), rnd(0, 0.4), rnd(10, 16), h, { g: 0.02, w: 1.1, l: p.l, drag: 0.9 });
+    if (p.tw && Math.random() < 0.25) a *= 0.3;
+    sctx.strokeStyle = `hsla(${h},${p.sat}%,${p.l}%,${a})`;
+    sctx.lineWidth = p.w;
+    sctx.beginPath(); sctx.moveTo(p.px, p.py); sctx.lineTo(p.x, p.y); sctx.stroke();
+  }
+  for (let i = letters.length - 1; i >= 0; i--) { // the message made of sparks
+    const L = letters[i]; L.t += dt;
+    if (L.t < 0) continue;
+    let a = 1;
+    if (L.t < L.fly) {
+      const u = L.t / L.fly, e = 1 - Math.pow(1 - u, 3);
+      L.cx = L.x + (L.tx - L.x) * e; L.cy = L.y + (L.ty - L.y) * e; a = 0.4 + 0.6 * u;
+    } else if (L.t < L.fly + L.hold) {
+      L.cx = L.tx + rnd(-0.5, 0.5); L.cy = L.ty + rnd(-0.5, 0.5);
+      a = Math.random() < 0.12 ? 0.5 : 1;
+    } else {
+      const u = (L.t - L.fly - L.hold) / L.fall;
+      if (u >= 1) { letters[i] = letters[letters.length - 1]; letters.pop(); continue; }
+      L.cx = L.tx + L.vx * u * 30; L.cy = L.ty + u * u * 70; a = 1 - u;
+    }
+    sctx.fillStyle = `hsla(${L.h},100%,70%,${a})`;
+    sctx.fillRect(L.cx - 1.4, L.cy - 1.4, 2.8, 2.8);
+  }
+  sctx.globalCompositeOperation = "source-over";
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const t = texts[i]; t.life -= dt;
+    if (t.life <= 0) { texts.splice(i, 1); continue; }
+    const a = t.life / t.max;
+    sctx.save();
+    sctx.translate(t.x, t.y); sctx.rotate(t.rot);
+    sctx.globalAlpha = Math.min(1, a * 1.6);
+    sctx.font = `900 ${t.size * (1 + (1 - a) * 0.3)}px Impact, system-ui, sans-serif`;
+    sctx.textAlign = "center"; sctx.lineWidth = 5; sctx.lineJoin = "round";
+    sctx.strokeStyle = "#7a1200"; sctx.strokeText(t.txt, 0, 0);
+    sctx.fillStyle = t.col; sctx.fillText(t.txt, 0, 0);
+    sctx.restore();
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- UI ---------- */
+let sel = "rocket";
+function showHint(txt) { const h = $("#hint"); h.textContent = txt || HINTS[sel]; h.classList.remove("off"); }
+function setSel(t, btn) {
+  sel = t; stopGun();
+  document.querySelectorAll(".ck").forEach(x => x.classList.toggle("sel", x === btn));
+  $("#msgbar").classList.toggle("on", t === "rocket");
+  showHint();
+}
+document.querySelectorAll(".ck").forEach(b => b.addEventListener("click", () => {
+  initAudio(); setSel(b.dataset.t, b);
+}));
+sky.addEventListener("pointerdown", e => {
+  e.preventDefault(); initAudio();
+  if (document.activeElement === msgEl) msgEl.blur();
+  if (sel === "gun") {
+    stopGun();
+    gunPt = { x: e.clientX, y: e.clientY };
+    try { sky.setPointerCapture(e.pointerId); } catch (err) {}
+    fire(gunPt.x, gunPt.y);
+    gunTimer = setInterval(() => gunPt && fire(gunPt.x, gunPt.y), 130);
+    return;
+  }
+  const x = e.clientX, y = clamp(e.clientY, 100, groundY);
+  if (sel === "rocket") {
+    const msg = msgEl.value.trim();
+    addItem("rocket", x, y, { msg });
+    if (msg) { msgEl.value = ""; showHint("Message sent! Watch for the burst"); }
+  } else addItem(sel, x, y);
+});
+sky.addEventListener("pointermove", e => { if (gunPt) { gunPt.x = e.clientX; gunPt.y = e.clientY; } });
+["pointerup", "pointercancel", "pointerleave"].forEach(n => sky.addEventListener(n, stopGun));
+document.addEventListener("visibilitychange", stopGun);
+
+function sendMessage() {
+  initAudio();
+  const msg = msgEl.value.trim();
+  addItem("rocket", W / 2, groundY, { msg, fast: true });
+  msgEl.value = ""; msgEl.blur();
+  if (msg) showHint("Message sent! Watch the sky");
+}
+$("#send").addEventListener("click", sendMessage);
+msgEl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendMessage(); } });
+
+$("#snd").addEventListener("click", () => {
+  initAudio(); quiet = !quiet;
+  $("#snd").textContent = quiet ? "🔇" : "🔊";
+  showHint(quiet ? "Quiet mode: no sound, no vibration. Kind to pets and babies" : "Sound on");
+  setTimeout(() => $("#hint").classList.add("off"), 2200);
+});
+function finale() {
+  initAudio();
+  const g = groundY, F = { fast: true };
+  addItem("anaar", W * 0.12, g, F); addItem("anaar", W * 0.88, g, F);
+  addItem("seven", W * 0.5, g, F);
+  for (let i = 0; i < 14; i++) {
+    setTimeout(() => addItem("rocket", rnd(W * 0.1, W * 0.9), g, F), 500 + i * 300);
+  }
+  setTimeout(() => { addItem("chakra", W * 0.3, g, F); addItem("chakra", W * 0.7, g, F); }, 2400);
+  setTimeout(() => addItem("ladi", W * 0.2, g, F), 3000);
+  setTimeout(() => addItem("ladi", W * 0.8, g, F), 3300);
+  setTimeout(() => { addItem("bomb", W * 0.35, g, F); addItem("bomb", W * 0.65, g, F); }, 5200);
+}
+$("#finale").addEventListener("click", finale);
+$("#shot").addEventListener("click", () => {
+  const c = document.createElement("canvas");
+  c.width = sky.width; c.height = sky.height;
+  const x = c.getContext("2d");
+  x.drawImage(bg, 0, 0); x.drawImage(sky, 0, 0);
+  x.font = `700 ${24 * DPR}px system-ui,sans-serif`; x.textAlign = "center";
+  x.fillStyle = "#ffd77a"; x.shadowColor = "#ff9a00"; x.shadowBlur = 14 * DPR;
+  x.fillText("Happy Diwali 🪔", c.width / 2, 64 * DPR);
+  c.toBlob(async b => {
+    const f = new File([b], "happy-diwali.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      try { await navigator.share({ files: [f], title: "Happy Diwali!" }); return; }
+      catch (err) { if (err.name === "AbortError") return; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b); a.download = "happy-diwali.png"; a.click();
+  }, "image/png");
+});
+
+resize(); setSel("rocket", document.querySelector('[data-t="rocket"]'));
+requestAnimationFrame(t => { last = t; frame(t); });
+</script>
+</body>
+</html>
